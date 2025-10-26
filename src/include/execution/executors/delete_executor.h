@@ -23,10 +23,7 @@
 
 namespace bustub {
 
-/**
- * DeletedExecutor executes a delete on a table.
- * Deleted values are always pulled from a child.
- */
+// DELETE FROM t1 where v1 = 1;  有子节点FilterExecutor
 class DeleteExecutor : public AbstractExecutor {
  public:
   /**
@@ -61,5 +58,8 @@ class DeleteExecutor : public AbstractExecutor {
 
   /** The child executor from which RIDs for deleted tuples are pulled */
   std::unique_ptr<AbstractExecutor> child_executor_;
+
+  std::shared_ptr<TableInfo> table_info_;
+  std::vector<std::shared_ptr<IndexInfo>> table_indexes_;
 };
 }  // namespace bustub

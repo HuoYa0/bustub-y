@@ -9,21 +9,17 @@ FilterExecutor::FilterExecutor(ExecutorContext *exec_ctx, const FilterPlanNode *
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
 void FilterExecutor::Init() {
-  // Initialize the child executor
   child_executor_->Init();
 }
 
 auto FilterExecutor::Next(Tuple *tuple, RID *rid) -> bool {
   auto filter_expr = plan_->GetPredicate();
-
+   // 如果不满足，就丢掉，继续取下一行；如果满足，就把tuple赋值返回给上层。
   while (true) {
-    // Get the next tuple
     const auto status = child_executor_->Next(tuple, rid);
-
     if (!status) {
       return false;
     }
-
     auto value = filter_expr->Evaluate(tuple, child_executor_->GetOutputSchema());
     if (!value.IsNull() && value.GetAs<bool>()) {
       return true;

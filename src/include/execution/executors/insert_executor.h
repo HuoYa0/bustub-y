@@ -18,26 +18,19 @@
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/insert_plan.h"
+#include "storage/table/table_heap.h"
 #include "storage/table/tuple.h"
 
 namespace bustub {
 
-/**
- * InsertExecutor executes an insert on a table.
- * Inserted values are always pulled from a child executor.
- */
+// INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
+// 只有一个子节点VALUES
+// ensure that the values have the same schema as the table.
 class InsertExecutor : public AbstractExecutor {
  public:
-  /**
-   * Construct a new InsertExecutor instance.
-   * @param exec_ctx The executor context
-   * @param plan The insert plan to be executed
-   * @param child_executor The child executor from which inserted tuples are pulled
-   */
   InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                  std::unique_ptr<AbstractExecutor> &&child_executor);
 
-  /** Initialize the insert */
   void Init() override;
 
   /**
@@ -51,12 +44,13 @@ class InsertExecutor : public AbstractExecutor {
    */
   auto Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool override;
 
-  /** @return The output schema for the insert */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
-  /** The insert plan node to be executed*/
   const InsertPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> child_executor_;
+  std::shared_ptr<TableInfo> table_info_;
+  std::vector<std::shared_ptr<IndexInfo>> table_indexes_;
 };
 
 }  // namespace bustub

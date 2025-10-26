@@ -283,11 +283,13 @@ auto BusTubInstance::ExecuteSqlTxn(const std::string &sql, ResultWriter &writer,
   bool is_successful = true;
 
   std::shared_lock<std::shared_mutex> l(catalog_lock_);
+  // 词法 语法分析
   bustub::Binder binder(*catalog_);
   binder.ParseAndSave(sql);
   l.unlock();
 
   for (auto *stmt : binder.statement_nodes_) {
+    // binder
     auto statement = binder.BindStatement(stmt);
 
     bool is_delete = false;

@@ -2,59 +2,66 @@
 //
 //                         BusTub
 //
-// projection_executor.h
+// projection_plan.h
 //
-// Identification: src/include/execution/executors/projection_executor.h
+// Identification: src/include/execution/plans/projection_plan.h
 //
-// Copyright (c) 2015-2022, Carnegie Mellon University Database Group
+// Copyright (c) 2015-2021, Carnegie Mellon University Database Group
 //
 //===----------------------------------------------------------------------===//
 
 #pragma once
 
 #include <memory>
+#include <string>
+#include <utility>
 #include <vector>
 
-#include "execution/executor_context.h"
-#include "execution/executors/abstract_executor.h"
-#include "execution/plans/projection_plan.h"
-#include "execution/plans/seq_scan_plan.h"
-#include "storage/table/tuple.h"
+#include "catalog/catalog.h"
+#include "catalog/schema.h"
+#include "execution/expressions/abstract_expression.h"
+#include "execution/plans/abstract_plan.h"
 
 namespace bustub {
 
 /**
- * The ProjectionExecutor executor executes a projection.
+ * The ProjectionPlanNode represents a project operation.
+ * It computes expressions based on the input.
  */
-class ProjectionExecutor : public AbstractExecutor {
+class ProjectionPlanNode : public AbstractPlanNode {
  public:
   /**
-   * Construct a new ProjectionExecutor instance.
-   * @param exec_ctx The executor context
-   * @param plan The projection plan to be executed
+   * Construct a new ProjectionPlanNode instance.
+   * @param output The output schema of this projection node
+   * @param expressions The expression to evaluate
+   * @param child The child plan node
    */
-  ProjectionExecutor(ExecutorContext *exec_ctx, const ProjectionPlanNode *plan,
-                     std::unique_ptr<AbstractExecutor> &&child_executor);
+  ProjectionPlanNode(SchemaRef output, std::vector<AbstractExpressionRef> expressions, AbstractPlanNodeRef child)
+      : AbstractPlanNode(std::move(output), {std::move(child)}), expressions_(std::move(expressions)) {}
 
-  /** Initialize the projection */
-  void Init() override;
+  /** @return The type of the plan node */
+  auto GetType() const -> PlanType override { return PlanType::Projection; }
 
-  /**
-   * Yield the next tuple from the projection.
-   * @param[out] tuple The next tuple produced by the projection
-   * @param[out] rid The next tuple RID produced by the projection
-   * @return `true` if a tuple was produced, `false` if there are no more tuples
-   */
-  auto Next(Tuple *tuple, RID *rid) -> bool override;
+  /** @return The child plan node */
+  auto GetChildPlan() const -> AbstractPlanNodeRef {
+    BUSTUB_ASSERT(GetChildren().size() == 1, "Projection should have exactly one child plan.");
+    return GetChildAt(0);
+  }
 
-  /** @return The output schema for the projection plan */
-  auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
+  /** @return Projection expressions */
+  // 表示返回常量引用
+  auto GetExpressions() const -> const std::vector<AbstractExpressionRef> & { return expressions_; }
 
- private:
-  /** The projection plan node to be executed */
-  const ProjectionPlanNode *plan_;
+  static auto InferProjectionSchema(const std::vector<AbstractExpressionRef> &expressions) -> Schema;
 
-  /** The child executor from which tuples are obtained */
-  std::unique_ptr<AbstractExecutor> child_executor_;
+  static auto RenameSchema(const Schema &schema, const std::vector<std::string> &col_names) -> Schema;
+
+  BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(ProjectionPlanNode);
+
+  std::vector<AbstractExpressionRef> expressions_;
+
+ protected:
+  auto PlanNodeToString() const -> std::string override;
 };
+
 }  // namespace bustub

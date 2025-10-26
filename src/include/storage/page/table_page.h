@@ -98,6 +98,7 @@ class TablePage {
   static_assert(sizeof(page_id_t) == 4);
 
  private:
+  // [offset, size, meta]
   using TupleInfo = std::tuple<uint16_t, uint16_t, TupleMeta>;
   char page_start_[0];
   page_id_t next_page_id_;
