@@ -18,55 +18,58 @@ namespace bustub {
 
 UpdateExecutor::UpdateExecutor(ExecutorContext *exec_ctx, const UpdatePlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
-    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {
-  // As of Fall 2022, you DON'T need to implement update executor to have perfect score in project 3 / project 4.
+    : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
+
+void UpdateExecutor::Init() {
+  if (child_executor_ != nullptr) {
+    child_executor_->Init();
+  }
+  auto catelog = exec_ctx_->GetCatalog();
+  table_info_ = catelog->GetTable(plan_->GetTableOid());
+  table_indexes_ = catelog->GetTableIndexes(catelog->GetTable(plan_->GetTableOid())->name_);
 }
-
-void UpdateExecutor::Init() { child_executor_->Init(); }
-
+// 返回 tuple of integer , 表示更新的行数
+// Hint: To implement an update, first delete the affected tuple and then insert a new tuple.
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if (is_executed_) {
-    return false;
-  }
-  is_executed_ = true;
-
-  table_oid_t tid = plan_->table_oid_;
-  auto catalog = exec_ctx_->GetCatalog();
-  auto table = catalog->GetTable(tid);
-  auto table_heap = table->table_.get();
-
-  auto &schema = table->schema_;
-
-  int ret = 0;
-  // 从底层算子获取tuple
-  Tuple old_tup;
-  RID r;
-  while (child_executor_->Next(&old_tup, &r)) {
-    // 先保存更新后的值（没有被更新的字段用ColumnValueExpression表示，直接取原值）
-    std::vector<Value> update_values;
+  int count = 0;
+  while (true) {
+    // 获取子节点tuple
+    Tuple old_child_tuple{};
+    RID old_child_rid;
+    const auto status = child_executor_->Next(&old_child_tuple, &old_child_rid);
+    if (!status) {
+      break;
+    }
+    count++;
+    // 逻辑上删除，更新TupleMeta 的删除标记
+    table_info_->table_->UpdateTupleMeta(TupleMeta{0, true}, old_child_rid);
+    // 计算更新后的值，构建并插入新的tuple
+    Tuple new_tuple{};
+    std::vector<Value> new_values{};
+    new_values.reserve(GetOutputSchema().GetColumnCount());
     for (auto &target_expr : plan_->target_expressions_) {
-      update_values.push_back(target_expr->Evaluate(&old_tup, schema));
+      new_values.push_back(target_expr->Evaluate(&old_child_tuple, table_info_->schema_));
     }
-    // 删除原来的数据
-    table_heap->UpdateTupleMeta({time(nullptr), true}, r);
-    // 插入更新后的数据
-    Tuple new_tup(update_values, &schema);
-    auto rid_inserted = table_heap->InsertTuple({time(nullptr), false}, new_tup);
-
-    // 更新索引
-    const auto &indexes = catalog->GetTableIndexes(table->name_);
-    for (auto &index : indexes) {
-      auto bplus_index = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index->index_.get());
-      auto index_key = old_tup.KeyFromTuple(schema, index->key_schema_, index->index_->GetKeyAttrs());
-      bplus_index->DeleteEntry(index_key, r, exec_ctx_->GetTransaction());
-
-      auto new_index_key = new_tup.KeyFromTuple(schema, index->key_schema_, index->index_->GetKeyAttrs());
-      bplus_index->InsertEntry(new_index_key, *rid_inserted, exec_ctx_->GetTransaction());
+    auto new_rid_opt = table_info_->table_->InsertTuple(TupleMeta{0, false}, new_tuple);
+    if (!new_rid_opt.has_value()) {
+      throw Exception("UpdateExecutor: failed to insert updated tuple");
+      continue;
     }
-    ret++;
+    // 删除并增加相关索引
+    // InsertExecutor 不需要额外判断“哪些索引被影响”，因为所有索引都需要被更新
+    for (const auto &index_info : table_indexes_) {
+      auto key_attrs = index_info->index_->GetMetadata()->GetKeyAttrs();    // 哪些列是索引的列
+      auto key_schema = index_info->index_->GetMetadata()->GetKeySchema();  // 索引键的schema
+      //从child_tuple中的各种值中，提取索引列，构造索引键
+      Tuple old_key = old_child_tuple.KeyFromTuple(table_info_->schema_, *key_schema, key_attrs);
+      Tuple new_key = new_tuple.KeyFromTuple(table_info_->schema_, *key_schema, key_attrs);
+      index_info->index_->DeleteEntry(old_key, old_child_rid, exec_ctx_->GetTransaction());
+      index_info->index_->InsertEntry(new_key, new_rid_opt.value(), exec_ctx_->GetTransaction());
+    }
   }
-  Value v = ValueFactory::GetIntegerValue(ret);
-  std::vector<Value> values{v};
+  // 初始化返回tuple
+  std::vector<Value> values{};
+  values.emplace_back(TypeId::INTEGER, count);
   *tuple = Tuple{values, &GetOutputSchema()};
   return true;
 }

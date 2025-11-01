@@ -20,39 +20,43 @@ DeleteExecutor::DeleteExecutor(ExecutorContext *exec_ctx, const DeletePlanNode *
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
 
-void DeleteExecutor::Init() { child_executor_->Init(); }
+void DeleteExecutor::Init() {
+  if (child_executor_ != nullptr) {
+    child_executor_->Init();
+  }
+  auto catelog = exec_ctx_->GetCatalog();
+  table_info_ = catelog->GetTable(plan_->GetTableOid());
+  table_indexes_ = catelog->GetTableIndexes(catelog->GetTable(plan_->GetTableOid())->name_);
+}
 
+// 返回 tuple of integer , 表示删除的行数
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
-  if (is_executed_) {
-    return false;
-  }
-  is_executed_ = true;
-  table_oid_t tid = plan_->table_oid_;
-  auto catalog = exec_ctx_->GetCatalog();
-  auto table = catalog->GetTable(tid);
-  auto table_heap = table->table_.get();
-
-  int ret = 0;
-  // 从底层算子获取tuple
-  Tuple tup;
-  RID r;
-  while (child_executor_->Next(&tup, &r)) {
-    // 删除数据
-    table_heap->UpdateTupleMeta({time(nullptr), true}, r);
-
-    // 删除索引
-    const auto &indexes = catalog->GetTableIndexes(table->name_);
-    for (auto &index : indexes) {
-      auto bplus_index = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index->index_.get());
-      auto index_key = tup.KeyFromTuple(table->schema_, index->key_schema_, index->index_->GetKeyAttrs());
-      bplus_index->DeleteEntry(index_key, r, exec_ctx_->GetTransaction());
+  int count = 0;
+  while (true) {
+    // 获取子节点tuple
+    Tuple child_tuple{};
+    RID child_rid;
+    const auto status = child_executor_->Next(&child_tuple, &child_rid);
+    if (!status) {
+      break;
     }
-    ret++;
+    count++;
+    // 逻辑上删除，更新TupleMeta 的删除标记
+    table_info_->table_->UpdateTupleMeta(TupleMeta{0, true}, child_rid);
+    // 删除相关索引
+    // InsertExecutor 不需要额外判断“哪些索引被影响”，因为所有索引都需要被更新
+    for (const auto &index_info : table_indexes_) {
+      auto key_attrs = index_info->index_->GetMetadata()->GetKeyAttrs();    // 哪些列是索引的列
+      auto key_schema = index_info->index_->GetMetadata()->GetKeySchema();  // 索引键的schema
+      //从child_tuple中的各种值中，提取索引列，构造索引键
+      Tuple key = child_tuple.KeyFromTuple(table_info_->schema_, *key_schema, key_attrs);
+      index_info->index_->DeleteEntry(key, child_rid, exec_ctx_->GetTransaction());
+    }
   }
-  Value v = ValueFactory::GetIntegerValue(ret);
-  std::vector<Value> values{v};
+  // 初始化返回tuple
+  std::vector<Value> values{};
+  values.emplace_back(TypeId::INTEGER, count);
   *tuple = Tuple{values, &GetOutputSchema()};
-
   return true;
 }
 

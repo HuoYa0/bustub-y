@@ -24,13 +24,11 @@
 
 namespace bustub {
 
-/**
- * UpdateExecutor executes an update on a table.
- * Updated values are always pulled from a child.
- */
+// update test_1 set colA = 15445,colB='sd';
+// target_exprs=["2", "15445", "#0.2", "#0.3"] 
+// 子节点是SeqScanExecutor逐行给出test_1原数据，需要实现更新（删除与新增）
 class UpdateExecutor : public AbstractExecutor {
   friend class UpdatePlanNode;
-
  public:
   /**
    * Construct a new UpdateExecutor instance.
@@ -61,12 +59,12 @@ class UpdateExecutor : public AbstractExecutor {
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_;
 
-  /** Metadata identifying the table that should be updated */
-  const TableInfo *table_info_;
 
-  /** The child executor to obtain value from */
   std::unique_ptr<AbstractExecutor> child_executor_;
 
-  bool is_executed_ = false;
+  std::shared_ptr<TableInfo> table_info_;
+
+  std::vector<std::shared_ptr<IndexInfo>> table_indexes_;
+
 };
 }  // namespace bustub

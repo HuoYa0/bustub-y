@@ -49,6 +49,7 @@ class ProjectionPlanNode : public AbstractPlanNode {
   }
 
   /** @return Projection expressions */
+  // 表示返回常量引用
   auto GetExpressions() const -> const std::vector<AbstractExpressionRef> & { return expressions_; }
 
   static auto InferProjectionSchema(const std::vector<AbstractExpressionRef> &expressions) -> Schema;

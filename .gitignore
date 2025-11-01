@@ -18,7 +18,7 @@
 .*.sw?
 .sw?
 # vscode settings directory
-.vscode
+
 #OS X specific files.
 .DS_store
 # Core files

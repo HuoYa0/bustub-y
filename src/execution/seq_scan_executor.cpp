@@ -23,39 +23,34 @@ namespace bustub {
 SeqScanExecutor::SeqScanExecutor(ExecutorContext *exec_ctx, const SeqScanPlanNode *plan)
     : AbstractExecutor(exec_ctx), plan_(plan) {}
 
+// 从 exec_ctx 获取 Catalog、找到 TableInfo，初始化表迭代器（table_heap_->Begin()）
 void SeqScanExecutor::Init() {
-  table_oid_t tid = plan_->table_oid_;
-  auto catalog = exec_ctx_->GetCatalog();
-  auto table = catalog->GetTable(tid);
-  auto table_heap = table->table_.get();
+  auto catelog = exec_ctx_->GetCatalog();
+  auto table_info = catelog->GetTable(plan_->GetTableOid());
+  auto table_heap = table_info->table_.get();
   iter_ = std::make_unique<TableIterator>(table_heap->MakeIterator());
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  auto filter = plan_->filter_predicate_;
+  // 在向量中预先分配内存空间，以容纳输出模式中列的数量
   while (!iter_->IsEnd()) {
-    auto [tup_meta, tup] = iter_->GetTuple();
-    *rid = iter_->GetRID();
-    ++(*iter_);
-    if (tup_meta.is_deleted_) {
+    auto [current_meta, current_tuple] = iter_->GetTuple();
+    if (current_meta.is_deleted_) {
+      ++(*iter_);
       continue;
     }
-    *tuple = std::move(tup);
-    // 根据过滤条件过滤
-    if (filter) {
-      auto value = filter->Evaluate(tuple, plan_->OutputSchema());
-      switch (value.GetTypeId()) {
-        case TypeId::BOOLEAN: {
-          if (!static_cast<bool>(value.GetAs<int8_t>())) {
-            continue;
-          }
-        } break;
-        default: {
-          UNIMPLEMENTED("error");
-        } break;
+    // 如果有过滤条件，进行过滤
+    if (plan_->filter_predicate_ != nullptr) {
+      auto eval_result = plan_->filter_predicate_->Evaluate(&current_tuple, plan_->OutputSchema());
+      if (!eval_result.IsNull() && eval_result.GetAs<bool>()) {
+        ++(*iter_);
+        *tuple = std::move(current_tuple);
+        *rid = iter_->GetRID();
+        return true;
       }
+      ++(*iter_);
+      continue;
     }
-    return true;
   }
   return false;
 }

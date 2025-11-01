@@ -23,9 +23,6 @@
 
 namespace bustub {
 
-/**
- * The ProjectionExecutor executor executes a projection.
- */
 class ProjectionExecutor : public AbstractExecutor {
  public:
   /**
@@ -35,26 +32,18 @@ class ProjectionExecutor : public AbstractExecutor {
    */
   ProjectionExecutor(ExecutorContext *exec_ctx, const ProjectionPlanNode *plan,
                      std::unique_ptr<AbstractExecutor> &&child_executor);
+  // &&表示右值引用，调用函数时资源会move进来
 
-  /** Initialize the projection */
   void Init() override;
 
-  /**
-   * Yield the next tuple from the projection.
-   * @param[out] tuple The next tuple produced by the projection
-   * @param[out] rid The next tuple RID produced by the projection
-   * @return `true` if a tuple was produced, `false` if there are no more tuples
-   */
+
   auto Next(Tuple *tuple, RID *rid) -> bool override;
 
-  /** @return The output schema for the projection plan */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); }
 
  private:
-  /** The projection plan node to be executed */
   const ProjectionPlanNode *plan_;
 
-  /** The child executor from which tuples are obtained */
   std::unique_ptr<AbstractExecutor> child_executor_;
 };
 }  // namespace bustub
