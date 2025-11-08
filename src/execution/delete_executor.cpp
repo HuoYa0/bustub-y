@@ -31,6 +31,9 @@ void DeleteExecutor::Init() {
 
 // 返回 tuple of integer , 表示删除的行数
 auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+  if (is_executed_) {
+    return false;
+  }
   int count = 0;
   while (true) {
     // 获取子节点tuple
@@ -40,9 +43,10 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     if (!status) {
       break;
     }
-    count++;
     // 逻辑上删除，更新TupleMeta 的删除标记
     table_info_->table_->UpdateTupleMeta(TupleMeta{0, true}, child_rid);
+    count++;
+
     // 删除相关索引
     // InsertExecutor 不需要额外判断“哪些索引被影响”，因为所有索引都需要被更新
     for (const auto &index_info : table_indexes_) {
@@ -57,6 +61,7 @@ auto DeleteExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   std::vector<Value> values{};
   values.emplace_back(TypeId::INTEGER, count);
   *tuple = Tuple{values, &GetOutputSchema()};
+  is_executed_ = true;
   return true;
 }
 

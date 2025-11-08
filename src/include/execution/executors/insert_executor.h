@@ -25,7 +25,6 @@ namespace bustub {
 
 // INSERT INTO t1 VALUES (1, 'a'), (2, 'b');
 // 只有一个子节点VALUES
-// ensure that the values have the same schema as the table.
 class InsertExecutor : public AbstractExecutor {
  public:
   InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
@@ -51,6 +50,7 @@ class InsertExecutor : public AbstractExecutor {
   std::unique_ptr<AbstractExecutor> child_executor_;
   std::shared_ptr<TableInfo> table_info_;
   std::vector<std::shared_ptr<IndexInfo>> table_indexes_;
+  bool is_executed_{false};
 };
 
 }  // namespace bustub

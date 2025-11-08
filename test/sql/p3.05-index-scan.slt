@@ -1,0 +1,26 @@
+# 6 pts
+
+# Ensure all order-bys in this file are transformed into index scan
+statement ok
+set force_optimizer_starter_rule=yes
+
+# Create a table
+statement ok
+create table t1(v1 int, v2 int, v3 int);
+
+query
+insert into t1 values (1, 50, 645), (2, 40, 721), (4, 20, 445), (5, 10, 445), (3, 30, 645);
+----
+5
+
+# Build index
+statement ok
+create index t1v1 on t1(v1,v2);
+
+statement ok
+create index t1v2 on t1(v2,v3);
+
+statement ok
+explain select * from t1 where 4 = v1 or v1 = 7;
+
+

@@ -22,66 +22,74 @@ IndexScanExecutor::IndexScanExecutor(ExecutorContext *exec_ctx, const IndexScanP
 void IndexScanExecutor::Init() {
   auto catalog = exec_ctx_->GetCatalog();
   auto index_info = catalog->GetIndex(plan_->index_oid_);
-  BUSTUB_ASSERT(index_info != nullptr, "Index must exist");
-  const auto &index = index_info->index_;
-  b_plus_tree_index_ = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index.get());
-  BUSTUB_ASSERT(b_plus_tree_index_ != nullptr, "Index must be BPlusTreeIndexForTwoIntegerColumn");
+  table_info_ = catalog->GetTable(plan_->table_oid_);
+  b_plus_tree_index_ = dynamic_cast<BPlusTreeIndexForTwoIntegerColumn *>(index_info->index_.get());
 
-  // group_by查询
-  if (plan_->pred_keys_.empty()) {
+  if (!plan_->pred_keys_.empty()) {
     is_point_scan_ = false;
     index_iter_ = std::make_unique<BPlusTreeIndexIteratorForTwoIntegerColumn>(b_plus_tree_index_->GetBeginIterator());
   }
 }
 
-// 实现点查询就行了
-auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  if (is_point_scan_ && current_idx_ >= plan_->pred_keys_.size()) {
-    return false;
-  }
 
+auto IndexScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
+  // 点查询 测试中不会有重复键，如果存在就返回一条，否则返回空。  
+  // SELECT * FROM table WHERE indexed_col = constant
   if (is_point_scan_) {
-    Tuple key_tuple;  // 构造索引键的tuple
-    while (current_idx_ < plan_->pred_keys_.size()) {
-      const auto &col_expr = plan_->pred_keys_[current_idx_++];
-      auto val = col_expr->Evaluate(&key_tuple, GetOutputSchema());  // 不需要tuple和schema
-      // 获取key schema
-      const auto &key_schema = b_plus_tree_index_->GetKeySchema();
-      // 仅支持单列索引
-      BUSTUB_ASSERT(key_schema->GetColumnCount() == 1, "Only single-column index is supported");
-      std::vector<Value> key_values{val};
-      key_tuple = Tuple(key_values, key_schema);
-      // 查找索引
-      std::vector<RID> result;
-      b_plus_tree_index_->ScanKey(key_tuple, &result, exec_ctx_->GetTransaction());
-      if (!result.empty()) {
-        BUSTUB_ASSERT(result.size() == 1, "Point query should return only one result");
-        *rid = result[0];
-        // 读取数据表中的tuple
-        auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
-        auto [found, tup] = table_info->table_->GetTuple(*rid);
-        if (!found.is_deleted_) {
-          *tuple = std::move(tup);
-          return true;
+    Tuple key_tuple;
+    // 构建b+树查找用的key tuple
+    std::vector<Value> key_values{};
+    key_values.reserve(GetOutputSchema().GetColumnCount());
+    for (const auto &this_expression : plan_->pred_keys_) {
+      // 常数表达式，不需要tuple和schema
+      key_values.push_back(this_expression->Evaluate(&key_tuple, GetOutputSchema()));
+    }
+    // 获取key schema
+    const auto &key_schema = b_plus_tree_index_->GetKeySchema();
+    key_tuple = Tuple(key_values, key_schema);
+    // 查找索引
+    std::vector<RID> result_rids;
+    b_plus_tree_index_->ScanKey(key_tuple, &result_rids, exec_ctx_->GetTransaction());
+    if (!result_rids.empty()) {
+      *rid = result_rids[0];
+      auto [meta, found_tuple] = table_info_->table_->GetTuple(*rid);
+      // 忽略删除的tuple
+      if (meta.is_deleted_) {
+        return false;
+      }
+      // 根据过滤条件过滤
+      if (plan_->filter_predicate_) {
+        auto value = plan_->filter_predicate_->Evaluate(&found_tuple, plan_->OutputSchema());
+        if (!value.GetAs<bool>()) {
+          return false;
         }
       }
+      *tuple = std::move(found_tuple);
+      return true;
     }
   } else {
+    // 用 index 的迭代器（index iterator）来遍历。
+    // SELECT * FROM table ORDER  BY indexed_col
     while (!index_iter_->IsEnd()) {
-      // 跳过删除的记录
       auto [key, rid_value] = **index_iter_;
       ++(*index_iter_);
       *rid = rid_value;
-      auto table_info = exec_ctx_->GetCatalog()->GetTable(plan_->table_oid_);
-      auto [found, tup] = table_info->table_->GetTuple(*rid);
-      if (found.is_deleted_) {
+      auto [meta, found_tuple] = table_info_->table_->GetTuple(*rid);
+      // 忽略删除的tuple
+      if (meta.is_deleted_) {
         continue;
       }
-      *tuple = std::move(tup);
+      // 根据过滤条件过滤
+      if (plan_->filter_predicate_) {
+        auto value = plan_->filter_predicate_->Evaluate(&found_tuple, plan_->OutputSchema());
+        if (!value.GetAs<bool>()) {
+          continue;
+        }
+      }
+      *tuple = std::move(found_tuple);
       return true;
     }
   }
-
   return false;
 }
 

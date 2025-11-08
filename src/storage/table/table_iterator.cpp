@@ -11,6 +11,7 @@
 //===----------------------------------------------------------------------===//
 
 #include <cassert>
+#include <iostream>
 #include <optional>
 
 #include "common/config.h"

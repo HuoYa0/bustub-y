@@ -63,7 +63,8 @@ class IndexScanPlanNode : public AbstractPlanNode {
 
   /**
    * The constant value keys to lookup.
-   * For example when dealing "WHERE v = 1" we could store the constant value 1 here
+    举例 Table rows a|b|c:   (1,x,1), (2,y,2), (3,z,3)；Index: B+ tree on a b；
+    Point lookup: a = 2 and b='y' → 则，pred_keys_= [2,'y']。
    */
   std::vector<AbstractExpressionRef> pred_keys_;
 

@@ -46,11 +46,15 @@ class IndexScanExecutor : public AbstractExecutor {
   auto Next(Tuple *tuple, RID *rid) -> bool override;
 
  private:
-  /** The index scan plan node to be executed. */
   const IndexScanPlanNode *plan_;
-  size_t current_idx_ = 0;
-  std::unique_ptr<BPlusTreeIndexIteratorForTwoIntegerColumn> index_iter_ = nullptr;
-  bool is_point_scan_ = true;
+  std::shared_ptr<TableInfo> table_info_;
   BPlusTreeIndexForTwoIntegerColumn *b_plus_tree_index_ = nullptr;
+  bool is_point_scan_{true};
+
+  // for有序扫描
+  std::unique_ptr<BPlusTreeIndexIteratorForTwoIntegerColumn> index_iter_ = nullptr;
+
+  // for点查询
+  size_t current_idx_{0};
 };
 }  // namespace bustub

@@ -31,6 +31,11 @@ void UpdateExecutor::Init() {
 // 返回 tuple of integer , 表示更新的行数
 // Hint: To implement an update, first delete the affected tuple and then insert a new tuple.
 auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+  if (!is_executed_) {
+    is_executed_ = true;
+  } else {
+    return false;
+  }
   int count = 0;
   while (true) {
     // 获取子节点tuple
@@ -44,12 +49,12 @@ auto UpdateExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
     // 逻辑上删除，更新TupleMeta 的删除标记
     table_info_->table_->UpdateTupleMeta(TupleMeta{0, true}, old_child_rid);
     // 计算更新后的值，构建并插入新的tuple
-    Tuple new_tuple{};
     std::vector<Value> new_values{};
     new_values.reserve(GetOutputSchema().GetColumnCount());
     for (auto &target_expr : plan_->target_expressions_) {
       new_values.push_back(target_expr->Evaluate(&old_child_tuple, table_info_->schema_));
     }
+    Tuple new_tuple{new_values, &table_info_->schema_};
     auto new_rid_opt = table_info_->table_->InsertTuple(TupleMeta{0, false}, new_tuple);
     if (!new_rid_opt.has_value()) {
       throw Exception("UpdateExecutor: failed to insert updated tuple");

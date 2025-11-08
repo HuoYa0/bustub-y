@@ -26,7 +26,7 @@ update t1 set v3 = 445 where v1 >= 3;
 2
 
 query
-select * from t1;
+select * from t1; 
 ----
 0 🥰 10
 1 🥰🥰 11

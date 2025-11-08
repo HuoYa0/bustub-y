@@ -61,5 +61,6 @@ class DeleteExecutor : public AbstractExecutor {
 
   std::shared_ptr<TableInfo> table_info_;
   std::vector<std::shared_ptr<IndexInfo>> table_indexes_;
+  bool is_executed_{false};
 };
 }  // namespace bustub

@@ -22,7 +22,6 @@ namespace bustub {
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
-
 // look up information about the table being inserted into. 
 void InsertExecutor::Init() {
   if (child_executor_ != nullptr) {
@@ -36,6 +35,9 @@ void InsertExecutor::Init() {
 // 插入到表后面，更新相关index
 // 返回 tuple of integer , 表示插入的行数
 auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
+  if (is_executed_) {
+    return false;
+  }
   int count = 0;
   while (true) {
     // 获取子节点tuple
@@ -63,6 +65,7 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
   std::vector<Value> values{};
   values.emplace_back(TypeId::INTEGER, count);
   *tuple = Tuple{values, &GetOutputSchema()};
+  is_executed_ = true;
   return true;
 }
 }  // namespace bustub

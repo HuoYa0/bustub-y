@@ -21,6 +21,9 @@ statement ok
 create index t1v2 on t1(v2);
 
 statement ok
+explain select * from t1 where 4 = v1 or v1 = 7;
+
+statement ok
 explain select * from t1 order by v1;
 
 statement ok

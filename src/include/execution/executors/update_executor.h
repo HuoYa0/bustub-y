@@ -25,10 +25,11 @@
 namespace bustub {
 
 // update test_1 set colA = 15445,colB='sd';
-// target_exprs=["2", "15445", "#0.2", "#0.3"] 
+// target_exprs=["2", "15445", "#0.2", "#0.3"]
 // 子节点是SeqScanExecutor逐行给出test_1原数据，需要实现更新（删除与新增）
 class UpdateExecutor : public AbstractExecutor {
   friend class UpdatePlanNode;
+
  public:
   /**
    * Construct a new UpdateExecutor instance.
@@ -59,12 +60,12 @@ class UpdateExecutor : public AbstractExecutor {
   /** The update plan node to be executed */
   const UpdatePlanNode *plan_;
 
-
   std::unique_ptr<AbstractExecutor> child_executor_;
 
   std::shared_ptr<TableInfo> table_info_;
 
   std::vector<std::shared_ptr<IndexInfo>> table_indexes_;
 
+  bool is_executed_{false};
 };
 }  // namespace bustub

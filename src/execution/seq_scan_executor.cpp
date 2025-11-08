@@ -32,25 +32,23 @@ void SeqScanExecutor::Init() {
 }
 
 auto SeqScanExecutor::Next(Tuple *tuple, RID *rid) -> bool {
-  // 在向量中预先分配内存空间，以容纳输出模式中列的数量
+  auto filter = plan_->filter_predicate_;
   while (!iter_->IsEnd()) {
-    auto [current_meta, current_tuple] = iter_->GetTuple();
-    if (current_meta.is_deleted_) {
-      ++(*iter_);
+    auto [tup_meta, tup] = iter_->GetTuple();
+    *rid = iter_->GetRID();
+    *tuple = std::move(tup);
+    ++(*iter_);
+    if (tup_meta.is_deleted_) {
       continue;
     }
-    // 如果有过滤条件，进行过滤
-    if (plan_->filter_predicate_ != nullptr) {
-      auto eval_result = plan_->filter_predicate_->Evaluate(&current_tuple, plan_->OutputSchema());
-      if (!eval_result.IsNull() && eval_result.GetAs<bool>()) {
-        ++(*iter_);
-        *tuple = std::move(current_tuple);
-        *rid = iter_->GetRID();
-        return true;
+    // 根据过滤条件过滤
+    if (filter) {
+      auto value = filter->Evaluate(tuple, plan_->OutputSchema());
+      if (!value.GetAs<bool>()) {
+        continue;
       }
-      ++(*iter_);
-      continue;
     }
+    return true;
   }
   return false;
 }
