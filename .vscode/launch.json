@@ -6,7 +6,7 @@
             "request": "launch",
             "name": "b_plus_tree_test_lldb",
             "program": "${workspaceFolder}/build/bin/bustub-sqllogictest",
-            "args": ["/home/bustub-y/test/sql/p3.03-update.slt","--verbose"],
+            "args": ["/home/bustub-y/test/sql/p3.05-index-scan.slt","--verbose"],
             "cwd": "${workspaceFolder}/build"
         },
     ]

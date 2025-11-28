@@ -16,13 +16,12 @@
 #include "storage/table/tuple.h"
 #include "type/integer_type.h"
 
-
 namespace bustub {
 
 InsertExecutor::InsertExecutor(ExecutorContext *exec_ctx, const InsertPlanNode *plan,
                                std::unique_ptr<AbstractExecutor> &&child_executor)
     : AbstractExecutor(exec_ctx), plan_(plan), child_executor_(std::move(child_executor)) {}
-// look up information about the table being inserted into. 
+// look up information about the table being inserted into.
 void InsertExecutor::Init() {
   if (child_executor_ != nullptr) {
     child_executor_->Init();
@@ -48,15 +47,15 @@ auto InsertExecutor::Next([[maybe_unused]] Tuple *tuple, RID *rid) -> bool {
       break;
     }
     // 插入表
-    if (table_info_->table_->InsertTuple(TupleMeta{0, false}, child_tuple)) {
+    auto insert_rid = table_info_->table_->InsertTuple(TupleMeta{0, false}, child_tuple);
+    if (insert_rid.has_value()) {
       // 更新相关索引
       // InsertExecutor 不需要额外判断“哪些索引被影响”，因为所有索引都需要被更新
       for (const auto &index_info : table_indexes_) {
-        auto key_attrs = index_info->index_->GetMetadata()->GetKeyAttrs();    // 哪些列是索引的列
-        auto key_schema = index_info->index_->GetMetadata()->GetKeySchema();  // 索引键的schema
+        auto key_attrs = index_info->index_->GetKeyAttrs();  // 哪些列是索引的列
         //从child_tuple中的各种值中，提取索引列，构造索引键
-        Tuple key = child_tuple.KeyFromTuple(table_info_->schema_, *key_schema, key_attrs);
-        index_info->index_->InsertEntry(key, child_rid, exec_ctx_->GetTransaction());
+        Tuple key = child_tuple.KeyFromTuple(table_info_->schema_, index_info->key_schema_, key_attrs);
+        index_info->index_->InsertEntry(key, *insert_rid, exec_ctx_->GetTransaction());
       }
       count++;
     }

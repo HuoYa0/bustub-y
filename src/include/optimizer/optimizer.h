@@ -12,6 +12,7 @@
 #include "concurrency/transaction.h"
 #include "execution/expressions/abstract_expression.h"
 #include "execution/plans/abstract_plan.h"
+#include "execution/plans/seq_scan_plan.h"
 
 namespace bustub {
 
@@ -89,6 +90,10 @@ class Optimizer {
    * @note Fall 2023 only: using hash index and only support point lookup
    */
   auto OptimizeSeqScanAsIndexScan(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef;
+
+  auto IsNeedIndexOptimise(const SeqScanPlanNode &plan, const AbstractExpressionRef &expression,
+                               std::vector<AbstractExpressionRef> &pred_keys, index_oid_t &index_oid) -> bool;
+
 
   void OptimizeSeqScanAsIndexScanHelper(const std::vector<std::shared_ptr<IndexInfo>> &indexs, const Schema &schema,
                                         const AbstractExpressionRef &expr, bool &use_index,

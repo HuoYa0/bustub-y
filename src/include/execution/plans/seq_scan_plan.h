@@ -15,7 +15,6 @@
 #include <memory>
 #include <string>
 #include <utility>
-
 #include "binder/table_ref/bound_base_table_ref.h"
 #include "catalog/catalog.h"
 #include "catalog/schema.h"

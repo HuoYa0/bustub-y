@@ -47,14 +47,14 @@ class IndexScanExecutor : public AbstractExecutor {
 
  private:
   const IndexScanPlanNode *plan_;
-  std::shared_ptr<TableInfo> table_info_;
+  bool is_point_scan_ = true;
   BPlusTreeIndexForTwoIntegerColumn *b_plus_tree_index_ = nullptr;
-  bool is_point_scan_{true};
 
-  // for有序扫描
+  // 点查询时使用
+  size_t current_idx_ = 0;
+
+  // group_by查询时使用
   std::unique_ptr<BPlusTreeIndexIteratorForTwoIntegerColumn> index_iter_ = nullptr;
 
-  // for点查询
-  size_t current_idx_{0};
 };
 }  // namespace bustub

@@ -9,15 +9,14 @@ auto Optimizer::Optimize(const AbstractPlanNodeRef &plan) -> AbstractPlanNodeRef
   if (force_starter_rule_) {
     // Use starter rules when `force_starter_rule_` is set to true.
     auto p = plan;
-    p = OptimizeMergeProjection(p);
-    p = OptimizeMergeFilterNLJ(p);
-    p = OptimizeNLJAsIndexJoin(p);
-    p = OptimizeOrderByAsIndexScan(p);
-    p = OptimizeMergeFilterScan(p);
-    p = OptimizeSeqScanAsIndexScan(p);
+    p = OptimizeMergeProjection(p); // 合并多个 Projection 节点
+    p = OptimizeMergeFilterNLJ(p); // 合并 Filter 和 Nested Loop Join (NLJ)
+    p = OptimizeNLJAsIndexJoin(p); // 将 Nested Loop Join 转换为索引连接 (Index Join)
+    p = OptimizeOrderByAsIndexScan(p); // 将 ORDER BY 转换为 Index Scan，如果有索引利用索引来排序
+    p = OptimizeMergeFilterScan(p); // 合并 Filter 和 SeqScan（顺序扫描）
+    p = OptimizeSeqScanAsIndexScan(p); // 将 SeqScan 转换为 IndexScan
     return p;
   }
-  // By default, use user-defined rules.
   return OptimizeCustom(plan);
 }
 
