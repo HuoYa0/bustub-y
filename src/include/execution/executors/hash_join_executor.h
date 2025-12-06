@@ -12,13 +12,57 @@
 
 #pragma once
 
+#include <cstddef>
+#include <cstdint>
 #include <memory>
+#include <unordered_map>
 #include <utility>
+#include <vector>
 
+#include "catalog/schema.h"
+#include "common/util/hash_util.h"
 #include "execution/executor_context.h"
 #include "execution/executors/abstract_executor.h"
 #include "execution/plans/hash_join_plan.h"
 #include "storage/table/tuple.h"
+#include "type/value.h"
+
+namespace bustub {
+struct JoinKey {
+  std::vector<Value> join_keys_;
+  auto operator==(const JoinKey &other) const -> bool {
+    for (uint32_t i = 0; i < other.join_keys_.size(); i++) {
+      if (join_keys_[i].CompareEquals(other.join_keys_[i]) != CmpBool::CmpTrue) {
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+// 可能一个joinkey对应多个value
+struct JoinValue {
+  std::vector<Value> values_;
+};
+};  // namespace bustub
+
+namespace std {
+
+/** Implements std::hash on AggregateKey */
+template <>
+struct hash<bustub::JoinKey> {
+  auto operator()(const bustub::JoinKey &join_key) const -> std::size_t {
+    size_t curr_hash = 0;
+    for (const auto &key : join_key.join_keys_) {
+      if (!key.IsNull()) {
+        curr_hash = bustub::HashUtil::CombineHashes(curr_hash, bustub::HashUtil::HashValue(&key));
+      }
+    }
+    return curr_hash;
+  }
+};
+
+}  // namespace std
 
 namespace bustub {
 
@@ -51,9 +95,27 @@ class HashJoinExecutor : public AbstractExecutor {
   /** @return The output schema for the join */
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
+  auto MakeJoinValue(const Tuple &tup, const Schema &schema) -> JoinValue {
+    JoinValue join_value;
+    for (size_t i = 0; i < schema.GetColumnCount(); i++) {
+      join_value.values_.emplace_back(tup.GetValue(&schema, i));
+    }
+    return join_value;
+  }
+
  private:
   /** The HashJoin plan node to be executed. */
   const HashJoinPlanNode *plan_;
+  std::unique_ptr<AbstractExecutor> left_child_;
+  std::unique_ptr<AbstractExecutor> right_child_;
+  std::unordered_map<JoinKey, std::vector<JoinValue>> map_ = {};
+  std::unordered_map<JoinKey, std::vector<JoinValue>>::const_iterator iter_;
+
+  std::vector<JoinValue> *right_join_values_{nullptr};
+  size_t value_idx_{INTMAX_MAX};
+  bool value_iter_valid_{false};
+
+  Tuple left_tuple_;
 };
 
 }  // namespace bustub

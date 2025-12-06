@@ -24,7 +24,7 @@ namespace bustub {
 
 auto Optimizer::IsNeedIndexOptimise(const SeqScanPlanNode &plan, const AbstractExpressionRef &expression,
                                     std::vector<AbstractExpressionRef> &pred_keys, index_oid_t &index_oid) -> bool {
-  //  WHERE v1 = 1 or v1 = 4 or v1 = 7 or v1 =10
+  //  WHERE v1 = 1 or v1 = 4 or v1 = 7 or v1 =10 且全是针对一个列
   auto logic_expr = std::dynamic_pointer_cast<LogicExpression>(expression);
   if (logic_expr && logic_expr->logic_type_ == LogicType::Or) {
     for (auto &child_expression : logic_expr->GetChildren()) {
@@ -35,7 +35,7 @@ auto Optimizer::IsNeedIndexOptimise(const SeqScanPlanNode &plan, const AbstractE
     }
     return true;
   }
-  // （WHERE 1 = v1）； （WHERE v1 = 1）；
+  // （WHERE 1 = v1）；和 （WHERE v1 = 1）；
   auto comparison_expr = std::dynamic_pointer_cast<ComparisonExpression>(expression);
   if (comparison_expr && comparison_expr->comp_type_ == ComparisonType::Equal) {
     std::shared_ptr<ColumnValueExpression> column_expr = nullptr;

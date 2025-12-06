@@ -24,13 +24,10 @@
 #include "storage/table/tuple.h"
 
 namespace bustub {
-
-/** AggregationType enumerates all the possible aggregation functions in our system */
 enum class AggregationType { CountStarAggregate, CountAggregate, SumAggregate, MinAggregate, MaxAggregate };
-
+//CountStarAggregate是 COUNT(*) 会返回表中所有行的数量，不考虑列的值是否为 NULL。
+// CountAggregate计算 非 NULL 值的数量。
 /**
- * AggregationPlanNode represents the various SQL aggregation functions.
- * For example, COUNT(), SUM(), MIN() and MAX().
  *
  * NOTE: To simplify this project, AggregationPlanNode must always have exactly one child.
  */
@@ -81,11 +78,11 @@ class AggregationPlanNode : public AbstractPlanNode {
 
   BUSTUB_PLAN_NODE_CLONE_WITH_CHILDREN(AggregationPlanNode);
 
-  /** The GROUP BY expressions */
+  /** GROUP BY department,age则group_bys_就是两个列表达式 */
   std::vector<AbstractExpressionRef> group_bys_;
-  /** The aggregation expressions */
+  /** SELECT department, SUM(salary), Min(salary) FROM xx GROUP BY department则aggregates_是[salary,salary]两个列表达式 */
   std::vector<AbstractExpressionRef> aggregates_;
-  /** The aggregation types */
+  /** SELECT department, SUM(salary), Min(salary) FROM xx GROUP BY department则agg_types_是[SUM,MIN] */
   std::vector<AggregationType> agg_types_;
 
  protected:

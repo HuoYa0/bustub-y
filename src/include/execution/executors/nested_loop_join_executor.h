@@ -53,8 +53,15 @@ class NestedLoopJoinExecutor : public AbstractExecutor {
   auto GetOutputSchema() const -> const Schema & override { return plan_->OutputSchema(); };
 
  private:
-  /** The NestedLoopJoin plan node to be executed. */
   const NestedLoopJoinPlanNode *plan_;
+
+  /** The left child executor */
+  std::unique_ptr<AbstractExecutor> left_executor_;
+  /** The right child executor */
+  std::unique_ptr<AbstractExecutor> right_executor_;
+
+  Tuple left_tuple_;
+  bool left_tuple_valid_ = false;
 };
 
 }  // namespace bustub
