@@ -22,12 +22,42 @@ namespace bustub {
 
 TupleComparator::TupleComparator(std::vector<OrderBy> order_bys) : order_bys_(std::move(order_bys)) {}
 
-auto TupleComparator::operator()(const SortEntry &entry_a, const SortEntry &entry_b) const -> bool { return false; }
+/** TODO(P3): Implement the comparison method */
+auto TupleComparator::operator()(const SortEntry &entry_a, const SortEntry &entry_b) const -> bool {
+  const auto key_a = entry_a.first;
+  const auto key_b = entry_b.first;
+  BUSTUB_ENSURE(key_a.size() == order_bys_.size() && key_b.size() == order_bys_.size(),
+                "SortKey size must match order_bys size");
+  for (size_t i = 0; i < order_bys_.size(); i++) {
+    const auto ord = order_bys_[i].first;
+    const Value &va = key_a[i];
+    const Value &vb = key_b[i];
 
-auto GenerateSortKey(const Tuple &tuple, const std::vector<OrderBy> &order_bys, const Schema &schema) -> SortKey {
-  return {};
+    if (va.CompareEquals(vb) == CmpBool::CmpTrue) {
+      continue;
+    }
+    const bool a_lt_b = (va.CompareLessThan(vb) == CmpBool::CmpTrue);
+
+    if (ord == OrderByType::DESC) {
+      return !a_lt_b;
+    }
+    return a_lt_b;
+  }
+  return false;
 }
 
+/**
+ * Generate sort key for a tuple based on the order by expressions.
+ *
+ * TODO(P3): Implement this method.
+ */auto GenerateSortKey(const Tuple &tuple, const std::vector<OrderBy> &order_bys, const Schema &schema) -> SortKey {
+  SortKey key;
+  key.reserve(order_bys.size());
+  for (const auto &ob : order_bys) {
+    key.emplace_back(ob.second->Evaluate(&tuple, schema));
+  }
+  return key;
+}
 /**
  * Above are all you need for P3.
  * You can ignore the remaining part of this file until P4.

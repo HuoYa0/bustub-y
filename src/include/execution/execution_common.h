@@ -33,7 +33,7 @@ class TupleComparator {
  public:
   explicit TupleComparator(std::vector<OrderBy> order_bys);
 
-  /** TODO(P3): Implement the comparison method */
+  auto GetOrderBys() -> const std::vector<OrderBy> & { return order_bys_; }
   auto operator()(const SortEntry &entry_a, const SortEntry &entry_b) const -> bool;
 
  private:
